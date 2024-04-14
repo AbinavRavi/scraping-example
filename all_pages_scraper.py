@@ -1,36 +1,37 @@
-import requests
+import asyncio
+import aiohttp
 from bs4 import BeautifulSoup
 
-def fetch_page(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.text
-    else:
-        print(f"Failed to fetch page {url}: {response.status_code}")
-        return None
-
-def scrape_page(html):
-    # Your scraping logic here
-    # Use BeautifulSoup to extract the data you need from the HTML
-    pass
-
-def main(root_url):
+async def fetch_single_page(url):
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                data = await response.text()
+                return data
+    except Exception as e:
+        raise e
+    
+async def fetch_all_pages(root_url):
+    text = []
     current_page = root_url
     while current_page:
-        html = fetch_page(current_page)
-        if html:
-            scrape_page(html)
-            # Example: Find next page URL
-            # Assuming pagination link is in <a> tag with class "next"
-            soup = BeautifulSoup(html, 'html.parser')
-            next_link = soup.find('a', class_='next')
-            if next_link:
-                current_page = next_link['href']
+        print(current_page)
+        data = await fetch_single_page(current_page)
+
+        soup = BeautifulSoup(data, "html.parser")
+        for link in soup.find_all("a", href=True):
+            if link["href"].startswith("/"):
+                current_page = f"{root_url}{link['href']}"
+                break
             else:
                 current_page = None
-        else:
-            break
+        for script in soup(["script", "style"]):
+            script.extract()  # rip it out
+        text.extend(soup.get_text())
+
+    return "".join(text)
 
 if __name__ == "__main__":
     root_url = 'https://docusaurus.io/docs'  # Replace with the root page URL
-    main(root_url)
+    text = asyncio.run(fetch_all_pages(root_url))
+    print(text)  # Pass the root URL
