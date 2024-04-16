@@ -22,7 +22,6 @@ async def fetch_all_pages(root_url):
         for link in soup.find_all("a", href=True):
             if link["href"].startswith("/"):
                 current_page = f"{root_url}{link['href']}"
-                break
             else:
                 current_page = None
         for script in soup(["script", "style"]):
